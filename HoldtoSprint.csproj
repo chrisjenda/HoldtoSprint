@@ -1,0 +1,160 @@
+﻿<!-- STUB VERSION 0.0.2-->
+<Project Sdk="Microsoft.NET.Sdk">
+	<!-- Static Config -->
+	<PropertyGroup>
+		<TargetFrameworks>net472</TargetFrameworks>
+		<LangVersion>preview</LangVersion>
+		<Nullable>enable</Nullable>
+		<AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+		<Authors>Salacious</Authors>
+	</PropertyGroup>
+
+	<!-- Per Plugin Config -->
+	<PropertyGroup>
+		<!-- Define BepInEx Plugin GUID -->
+		<AssemblyName>$(MSBuildProjectName)</AssemblyName>
+		<!-- Define BepInEx Plugin Name -->
+		<Product>$(MSBuildProjectName)</Product>
+		<!-- Define BepInEx Plugin Version -->
+		<Version>0.1.0</Version>
+		<!-- Define Plugin Folder Name with Leading and Trailing \ I.E \$(Authors).$(Product)\, Leave Blank to put Plugin in Root of Plugins Folder-->
+		<PluginFolderName></PluginFolderName>
+		<!-- Define Game Location and Plugins Directory Paths -->
+		<GameBepInExPluginsPath>D:\Games\Another Crab's Treasure\BepInEx\Plugins</GameBepInExPluginsPath>
+		<EXEPath>D:\Games\Another Crab's Treasure\AnotherCrabsTreasure.exe</EXEPath>
+		<!-- Set True to Start Game After Build -->
+		<LaunchGame>True</LaunchGame>
+		<LaunchGameRelease>False</LaunchGameRelease>
+		<!-- Set Launch Args -->
+		<LaunchGameArgs>-console -force-gfx-jobs native</LaunchGameArgs>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<Compile Remove="assets\**" />
+		<Compile Remove="ThunderStore\**" />
+		<Compile Remove="translations\**" />
+		<EmbeddedResource Remove="assets\**" />
+		<EmbeddedResource Remove="ThunderStore\**" />
+		<EmbeddedResource Remove="translations\**" />
+		<None Remove="assets\**" />
+		<None Remove="ThunderStore\**" />
+		<None Remove="translations\**" />
+		<None Remove="README.md" />
+	</ItemGroup>
+
+	<!-- Nuget Config -->
+	<ItemGroup>
+		<PackageReference Include="BepInEx.AssemblyPublicizer.MSBuild" Version="0.4.2">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<PackageReference Include="BepInEx.BaseLib" Version="5.4.21" />
+		<PackageReference Include="BepInEx.PluginInfoProps" Version="2.1.0" />
+		<PackageReference Include="HarmonyX" Version="2.12.0" />
+		<PackageReference Include="MonoMod.Backports" Version="1.1.0" />
+		<PackageReference Include="MSBuildTasks" Version="1.5.0.235">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+	</ItemGroup>
+
+	<!-- AnotherCrabsTreasure References -->
+	<ItemGroup>
+		<Reference Include="Assembly-CSharp" Publicize="true">
+			<HintPath>..\..\AnotherCrabsTreasure_Data\Managed\Assembly-CSharp.dll</HintPath>
+		</Reference>
+		<Reference Include="Rewired_Core" Publicize="true">
+		  <HintPath>..\..\AnotherCrabsTreasure_Data\Managed\Rewired_Core.dll</HintPath>
+		</Reference>
+	</ItemGroup>
+
+	<!-- Unity References -->
+	<ItemGroup>
+	  <Reference Include="UnityEngine">
+	    <HintPath>..\..\AnotherCrabsTreasure_Data\Managed\UnityEngine.dll</HintPath>
+	  </Reference>
+	  <Reference Include="UnityEngine.CoreModule">
+	    <HintPath>..\..\AnotherCrabsTreasure_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
+	  </Reference>
+	  <Reference Include="UnityEngine.InputLegacyModule">
+	    <HintPath>..\..\AnotherCrabsTreasure_Data\Managed\UnityEngine.InputLegacyModule.dll</HintPath>
+	  </Reference>
+	</ItemGroup>
+
+	<!--Launch a Process in Parallel-->
+	<UsingTask TaskName="ExecAsync" TaskFactory="CodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+		<ParameterGroup>
+			<!--The file path is the full path to the executable file to run-->
+			<FilePath ParameterType="System.String" Required="true" />
+			<!--The arguments should contain all the command line arguments that need to be sent to the application-->
+			<Arguments ParameterType="System.String" Required="true" />
+		</ParameterGroup>
+		<Task>
+			<Code Type="Fragment" Language="cs">
+				<![CDATA[
+				string name = System.IO.Path.GetFileNameWithoutExtension(FilePath);
+				Log.LogMessage("Starting {0}...", name);        
+				System.Diagnostics.ProcessStartInfo processStartInfo = new System.Diagnostics.ProcessStartInfo(FilePath, Arguments);
+				processStartInfo.UseShellExecute = true;
+				System.Diagnostics.Process.Start(processStartInfo);
+				Log.LogMessage("Finished running process {0}.", name);
+				]]>
+			</Code>
+		</Task>
+	</UsingTask>
+
+	<!-- Deploy Mod to BepinEx Plugins Directory -->
+	<Target Name="DeployMod" AfterTargets="AfterBuild">
+		<!-- Copy the target path to the GameBepInExPluginsPath directory -->
+		<Exec Command="xcopy &quot;$(TargetPath)&quot; &quot;$(GameBepInExPluginsPath)$(PluginFolderName)&quot; /Y /I" />
+
+		<!-- Copy the .pdb file to the GameBepInExPluginsPath directory if the configuration is not 'Release' -->
+		<Exec Condition="'$(Configuration)' != 'Release'" Command="xcopy &quot;$(TargetDir)$(TargetName).pdb&quot; &quot;$(GameBepInExPluginsPath)$(PluginFolderName)&quot; /Y /I" />
+
+		<!-- Delete the any existing .pdb file if the configuration is 'Release' -->
+		<Exec Condition="'$(Configuration)' == 'Release'" Command="del &quot;$(GameBepInExPluginsPath)$(PluginFolderName)\$(TargetName).pdb&quot;" />
+	</Target>
+
+	<Target Name="PublishMod" AfterTargets="DeployMod" Condition="'$(Configuration)' == 'Release'">
+
+		<PropertyGroup>
+			<ChangelogFilePath>$(SolutionDir)ThunderStore\CHANGELOG.md</ChangelogFilePath>
+			<ReadmeFilePath>$(SolutionDir)ThunderStore\README.md</ReadmeFilePath>
+			<ManifestFilePath>$(SolutionDir)ThunderStore\manifest.json</ManifestFilePath>
+			<ThunderStoreTarget>$(SolutionDir)ThunderStore\$(Product)-$(Version)</ThunderStoreTarget>
+		</PropertyGroup>
+
+		<!-- Copy Mod into ThunderStore folder with Plugin Name and Version-->
+		<Exec Command="mkdir &quot;$(ThunderStoreTarget)\plugins&quot;" ContinueOnError="true" />
+		<Exec Command="xcopy &quot;$(TargetPath)&quot; &quot;$(ThunderStoreTarget)\plugins&quot; /Y /I" />
+
+		<!-- Open CHANGELOG.md in the text editor -->
+		<Exec Command="notepad.exe &quot;$(ChangelogFilePath)&quot;" />
+
+		<!-- Open README.md in the text editor -->
+		<Exec Command="notepad.exe &quot;$(ReadmeFilePath)&quot;" />
+
+		<!-- Copy Mod Thunderstore Files into ThunderStore folder with Plugin Name and Version-->
+		<Exec Command="xcopy &quot;$(ManifestFilePath)&quot; &quot;$(ThunderStoreTarget)&quot; /Y /I" />
+		<Exec Command="xcopy &quot;$(ChangelogFilePath)&quot; &quot;$(ThunderStoreTarget)&quot; /Y /I" />
+		<Exec Command="xcopy &quot;$(ReadmeFilePath)&quot; &quot;$(ThunderStoreTarget)&quot; /Y /I" />
+		<Exec Command="xcopy &quot;$(SolutionDir)ThunderStore\icon.png&quot; &quot;$(ThunderStoreTarget)&quot; /Y /I" />
+
+		<!-- Zip Mod -->
+		<Exec Command="del $(SolutionDir)ThunderStore\*.zip" ContinueOnError="true" />
+		<Exec Command="Tar -a -cf &quot;$(ThunderStoreTarget).zip&quot; -C &quot;$(ThunderStoreTarget)&quot; *.*" />
+		<RemoveDir Directories="$(ThunderStoreTarget)" />
+
+		<!-- Archive Mod -->
+		<Exec Command="mkdir &quot;$(SolutionDir)ThunderStore\Archived&quot;" ContinueOnError="true" />
+		<Exec Command="xcopy &quot;$(ThunderStoreTarget).zip&quot; &quot;$(SolutionDir)ThunderStore\Archived&quot; /Y /I" />
+
+		<!-- Start Game -->
+		<ExecAsync FilePath="$(EXEPath)" Arguments="$(LaunchGameArgs)" ContinueOnError="true" Condition="'$(LaunchGameRelease)' == 'True'" />
+	</Target>
+
+	<!-- Start Game -->
+	<Target Name="LaunchExecutable" AfterTargets="DeployMod" Condition="'$(LaunchGame)' == 'True' and '$(Configuration)' != 'Release'">
+		<ExecAsync FilePath="$(EXEPath)" Arguments="$(LaunchGameArgs)" ContinueOnError="true" />
+	</Target>
+</Project>

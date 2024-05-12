@@ -16,7 +16,7 @@
 		<!-- Define BepInEx Plugin Name -->
 		<Product>$(MSBuildProjectName)</Product>
 		<!-- Define BepInEx Plugin Version -->
-		<Version>0.1.0</Version>
+		<Version>0.1.1</Version>
 		<!-- Define Plugin Folder Name with Leading and Trailing \ I.E \$(Authors).$(Product)\, Leave Blank to put Plugin in Root of Plugins Folder-->
 		<PluginFolderName></PluginFolderName>
 		<!-- Define Game Location and Plugins Directory Paths -->

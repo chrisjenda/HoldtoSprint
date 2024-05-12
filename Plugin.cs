@@ -14,10 +14,6 @@ public class Plugin : BaseUnityPlugin
 
     private void Awake()
     {
-#if DEBUG
-        HarmonyLib.Tools.Logger.ChannelFilter |= HarmonyLib.Tools.Logger.LogChannel.IL;
-#endif
-
         Harmony.Patch(
             AccessTools.Method(typeof(LocalizedText), nameof(LocalizedText.LoadMainTable)), // Target Method to Patch (ClassName, MethodName, Argument Types)
             postfix: new HarmonyMethod(typeof(Plugin), nameof(LocalizedText_LoadMainTable_Patch)) // Patch Method Prefix/Postfix/Transpiler (ClassName, MethodName)
@@ -34,7 +30,7 @@ public class Plugin : BaseUnityPlugin
         var player = Player.singlePlayer;
         if (player == null) return;
 
-        if (!player.sprinting && player.canSprint)
+        if (player.canSprint)
             player._sprinting = Input.GetKey(player.input.GetKeyCode("SprintTap"));
 
     }
